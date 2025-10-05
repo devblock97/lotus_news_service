@@ -1,21 +1,17 @@
 use axum::{routing::get, Router};
-use tower_http::{cors::{Any, CorsLayer}, request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer}, trace::TraceLayer};
 
-use crate::presentation;
-use crate::AppContext;
-
+use crate::{infrastructure::observability, presentation, AppContext};
 
 pub async fn build_router(ctx: AppContext) -> Router {
-    let cors = CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any);
-    let make_req_id = MakeRequestUuid::default();
-    
+    let (set_request_id, propagate_request_id, trace) = observability::middleware();
+
     let api = presentation::routes(ctx.clone());
 
     Router::new()
         .route("/health", get(|| async {"OK"}))
         .nest("/api", api)
-        .layer(cors)
-        .layer(SetRequestIdLayer::x_request_id(make_req_id))
-        .layer(PropagateRequestIdLayer::x_request_id())
-        .layer(TraceLayer::new_for_http())
+        .layer(observability::cors_layer())
+        .layer(set_request_id)
+        .layer(propagate_request_id)
+        .layer(trace)
 }

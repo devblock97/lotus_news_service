@@ -6,7 +6,7 @@ pub fn cors_layer() -> CorsLayer {
 }
 
 /// Telemetry layers: request id + trace
-pub fn telemetry_layers() -> (SetRequestIdLayer<MakeRequestUuid>, PropagateRequestIdLayer, TraceLayer<SharedClassifier<ServerErrorsAsFailures>>) {
+pub fn middleware() -> (SetRequestIdLayer<MakeRequestUuid>, PropagateRequestIdLayer, TraceLayer<SharedClassifier<ServerErrorsAsFailures>>) {
     let make_id = MakeRequestUuid::default();
     (SetRequestIdLayer::x_request_id(make_id), PropagateRequestIdLayer::x_request_id(), TraceLayer::new_for_http())
 }
