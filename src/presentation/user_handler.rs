@@ -7,6 +7,7 @@ use crate::domain::users::UserPublic;
 pub struct SignupRequest {
     pub username: String,
     pub email: String,
+    pub avatar: String,
     pub password: String,
 }
 
@@ -20,7 +21,7 @@ pub async fn signup(
     State(state): State<ApiState>,
     Json(payload): Json<SignupRequest>,
 ) -> Result<StatusCode, (StatusCode, String)> {
-    state.user_service.signup(payload.username, payload.email, payload.password)
+    state.user_service.signup(payload.username, payload.email, payload.avatar, payload.password)
         .await
         .map(|_| StatusCode::CREATED)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))

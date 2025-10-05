@@ -23,7 +23,7 @@ impl UserService {
     pub fn new(repo: Arc<dyn UserRepository>) -> Self { Self { repo } }
 
     /// Registers a user after validation & uniqueness checks.
-    pub async fn signup(&self, username: String, email: String, password: String) -> Result<User, AppError> {
+    pub async fn signup(&self, username: String, email: String, avatar: String, password: String) -> Result<User, AppError> {
         // input.validate().map_err(|e| AppError::validation(e.to_string()))?;
 
         // normalize
@@ -40,7 +40,7 @@ impl UserService {
         }
 
         let hash = auth::hash_password(&password)?;
-        let user = self.repo.create(&email, username, &hash).await?;
+        let user = self.repo.create(&email, username, &avatar, &hash).await?;
         Ok(user)
     }
 

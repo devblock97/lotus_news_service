@@ -1,7 +1,5 @@
 use axum::{
-    extract::{Query, State, Path},
-    http::StatusCode,
-    Json,
+    extract::{ws::WebSocket, Path, Query, State, WebSocketUpgrade}, http::StatusCode, response::IntoResponse, Json
 };
 use serde::Deserialize;
 use uuid::Uuid;
@@ -25,6 +23,10 @@ pub async fn create_post(
     let post = state.post_service.create(user_id, _payload)
         .await
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+
+    // Send the enw post to all WebSocket listeners
+    // We ignore the result, as it's okay if there are no active listeners
+    let _ = state.post_broadcaster.send(post.clone());
 
     Ok((StatusCode::CREATED, Json(post)))
 }
@@ -57,3 +59,37 @@ pub async fn list_posts(
     Ok(Json(serde_json::json!({ "posts": posts })))
 }
 
+#[axum::debug_handler]
+pub async fn ws_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<ApiState>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(mut socket: WebSocket,state: ApiState,) {
+    let mut rx = state.post_broadcaster.subscribe();
+
+    loop {
+        tokio::select! {
+            // Receive a new post from the broadcast channel
+            Ok(post) = rx.recv() => {
+                // Serialize the post to JSON and send it to the client
+                if socket.send(serde_json::to_string(&post).unwrap().into()).await.is_err() {
+                    break;
+                }
+            }
+            // Receive a message from the client (optional, but good for health checks)
+            Some(Ok(msg)) = socket.recv() => {
+                if let axum::extract::ws::Message::Close(_) = msg {
+                    // Client sent a close message
+                    break;
+                }
+            }
+            else => {
+                // Client disconnected
+                break;
+            }
+        }
+    }
+}

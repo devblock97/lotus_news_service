@@ -2,7 +2,10 @@ use std::sync::Arc;
 use axum::routing::{post, put};
 use axum::{routing::get, Router};
 use axum::extract::FromRef;
+use tokio::sync::broadcast;
+use tower_http::cors::CorsLayer;
 
+use crate::domain::posts::Post;
 use crate::infrastructure::repositories::user_repo::PgUserRepository;
 use crate::AppContext;
 use crate::application::posts_service::PostService;
@@ -21,6 +24,7 @@ pub struct ApiState {
     user_service: Arc<UserService>,
     post_service: Arc<PostService>,
     jwt_keys: Arc<JwtKeys>,
+    post_broadcaster: broadcast::Sender<Post>,
 }
 
 pub fn routes(ctx: AppContext) -> Router {
@@ -31,10 +35,13 @@ pub fn routes(ctx: AppContext) -> Router {
     let user_repo: Arc<dyn crate::domain::users::UserRepository> = Arc::new(PgUserRepository { pool: ctx.pool.clone(), jwt: (*jwt_keys).clone() });
     let user_service = Arc::new(UserService::new(user_repo));
 
+    let (tx, _) = broadcast::channel(100);
+
     let state = ApiState {
         user_service,
         post_service,
         jwt_keys,
+        post_broadcaster: tx,
     };
 
     Router::new()
@@ -43,5 +50,6 @@ pub fn routes(ctx: AppContext) -> Router {
         .route("/posts", get(post_handler::list_posts))
         .route("/posts", post(post_handler::create_post))
         .route("/posts/{id}", put(post_handler::update_post))
+        .route("/ws/posts", get(post_handler::ws_handler))
         .with_state(state)
 }

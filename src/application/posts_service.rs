@@ -57,42 +57,8 @@ impl PostService {
         Ok(post)
     }
 
-    // pub async fn update(&self, post_id: Uuid, title: &str, short_description: &str, url: &Option<String>, body: &Option<String>) -> Result<Post, AppError> {
-    //     if title.len() < 3 || title.len() > 300 {
-    //         return Err(AppError::validation("Title must be between 3 and 300 characters".to_string()));
-    //     }
-
-    //     let has_url = url.as_ref().is_some();
-    //     let has_body = body.as_ref().is_some();
-
-    //     if !has_url && !has_body {
-    //         return Err(AppError::validation("Either url or body must be provided".to_string()));
-    //     }
-
-    //     if !has_url && body.as_ref().unwrap().trim().is_empty() {
-    //         return Err(AppError::validation("Body cannot be empty if url is not provided".to_string()));
-    //     }
-
-    //     validation::validate_http_url(url)
-    //         .map_err(|e| AppError::validation(e.to_string()))?;
-
-    //     if profanity::contains_profanity(title) {
-    //         return Err(AppError::validation("Title contains inappropriate language".to_string()));
-    //     }
-
-    //     if let Some(body) = body {
-    //         if profanity::contains_profanity(body) {
-    //             return Err(AppError::validation("Body contains inappropriate language".to_string()));
-    //         }
-    //     }
-
-    //     let post = self.repo.update(post_id, title, short_description, url, body).await?;
-
-    //     Ok(post)
-    // }
-
     pub async fn update(&self, post_id: Uuid, title: &str, short_description: &str, url: &Option<String>, body: &Option<String>) -> Result<Post, AppError> {
-        if title.len() < 3 || title.len() > 300 {
+        if (title.len() < 3 || title.len() > 300) {
             return Err(AppError::validation("Title must be between 3 and 300 characters".to_string()));
         }
 
