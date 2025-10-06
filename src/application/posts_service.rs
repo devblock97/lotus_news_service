@@ -72,6 +72,10 @@ impl PostService {
         let post = self.repo.update(post_id, title, short_description, url, body).await?;
         Ok(post)
     }
+    
+    pub async fn delete(&self, post_id: Uuid) -> Result<(), AppError> {
+        Ok(self.repo.delete(post_id).await?)
+    }
 
     pub async fn list_new(
         &self,

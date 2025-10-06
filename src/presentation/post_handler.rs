@@ -37,17 +37,45 @@ pub async fn update_post(
     Path(post_id): Path<Uuid>,
     Json(_payload): Json<CreatePostInput>
 ) -> Result<(StatusCode, Json<Post>), (StatusCode, String)> {
-    let post = state.post_service.update(post_id, &_payload.title, &_payload.short_description, &_payload.url, &_payload.body)
+    let post = state.post_service.update(
+        post_id, 
+        &_payload.title, 
+        &_payload.short_description, 
+        &_payload.url, 
+        &_payload.body
+    )
         .await
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     
     Ok((StatusCode::OK, Json(post)))
 }
 
+// #[axum::debug_handler]
+// pub async fn delete_post(
+//     State(state): State<ApiState>, 
+//     Path(post_id): Path<Uuid>,
+// ) -> Result<StatusCode, (StatusCode, String)> {
+//     state.post_service.delete(post_id)
+//         .await
+//         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    
+//     Ok(StatusCode::NO_CONTENT)
+// }
+
+#[axum::debug_handler]
+pub async fn delete_post(State(state): State<ApiState>, Path(post_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
+    state.post_service.delete(post_id)
+    .await
+    .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub async fn list_posts(
     State(state): State<ApiState>,
     Query(query): Query<ListPostQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+
     let limit = query.limit.unwrap_or(20);
     if limit <= 0 {
         return Err((StatusCode::BAD_REQUEST, "Limit must be greater than 0".to_string()));

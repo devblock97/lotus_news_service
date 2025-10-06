@@ -108,6 +108,21 @@ impl PostRepository for PgPostRepository {
         Ok(post)
     }
 
+    async fn delete(&self, post_id: Uuid) -> anyhow::Result<()> {
+        let post = sqlx::query_as!(
+            Post,
+            r#"
+                DELETE FROM posts
+                WHERE id = $1
+            "#,
+            post_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn search_by_title(&self, query: &str, after: Option<(DateTime<Utc>, Uuid)>, limit: i64) -> anyhow::Result<Vec<Post>> {
         let posts = if let Some((created_at, id)) = after {
             sqlx::query_as!(
