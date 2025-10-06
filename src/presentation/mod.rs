@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use axum::routing::{post, put};
+use axum::routing::{delete, post, put};
 use axum::{routing::get, Router};
 use axum::extract::FromRef;
 use tokio::sync::broadcast;
@@ -49,6 +49,7 @@ pub fn routes(ctx: AppContext) -> Router {
         .route("/login", post(user_handler::login))
         .route("/posts", get(post_handler::list_posts))
         .route("/posts", post(post_handler::create_post))
+        .route("/posts/{id}", delete(post_handler::delete_post))
         .route("/posts/{id}", put(post_handler::update_post))
         .route("/ws/posts", get(post_handler::ws_handler))
         .with_state(state)
