@@ -14,6 +14,12 @@ pub struct ListPostQuery {
     pub cursor: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct VoteRequest {
+    pub value: i16,
+}
+
+
 #[axum::debug_handler]
 pub async fn create_post(
     State(state): State<ApiState>,
@@ -50,20 +56,11 @@ pub async fn update_post(
     Ok((StatusCode::OK, Json(post)))
 }
 
-// #[axum::debug_handler]
-// pub async fn delete_post(
-//     State(state): State<ApiState>, 
-//     Path(post_id): Path<Uuid>,
-// ) -> Result<StatusCode, (StatusCode, String)> {
-//     state.post_service.delete(post_id)
-//         .await
-//         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-    
-//     Ok(StatusCode::NO_CONTENT)
-// }
-
 #[axum::debug_handler]
-pub async fn delete_post(State(state): State<ApiState>, Path(post_id): Path<Uuid>) -> Result<StatusCode, (StatusCode, String)> {
+pub async fn delete_post(
+    State(state): State<ApiState>, 
+    Path(post_id): Path<Uuid>
+) -> Result<StatusCode, (StatusCode, String)> {
     state.post_service.delete(post_id)
     .await
     .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
@@ -85,6 +82,19 @@ pub async fn list_posts(
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
     Ok(Json(serde_json::json!({ "posts": posts })))
+}
+
+
+pub async fn vote_post(
+    AuthUser { user_id }: AuthUser,
+    Path(post_id): Path<Uuid>,
+    State(state): State<ApiState>,
+    Json(payload): Json<VoteRequest>,
+) -> Result<StatusCode, (StatusCode, String)> {
+    state.post_service.vote_post(user_id, post_id, payload.value)
+    .await
+    .map(|_| StatusCode::OK)
+    .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))
 }
 
 #[axum::debug_handler]

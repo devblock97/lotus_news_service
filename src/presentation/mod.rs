@@ -5,8 +5,10 @@ use axum::extract::FromRef;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 
+use crate::application::vote_service::VoteService;
 use crate::domain::posts::Post;
 use crate::infrastructure::repositories::user_repo::PgUserRepository;
+use crate::infrastructure::repositories::vote_repo;
 use crate::AppContext;
 use crate::application::posts_service::PostService;
 use crate::application::user_service::UserService;
@@ -16,6 +18,7 @@ use crate::infrastructure::repositories::posts_repo::PgPostRepository;
 mod auth;
 mod post_handler;
 mod user_handler;
+mod vote_handler;
 
 use crate::infrastructure::auth::JwtKeys;
 
@@ -23,6 +26,7 @@ use crate::infrastructure::auth::JwtKeys;
 pub struct ApiState {
     user_service: Arc<UserService>,
     post_service: Arc<PostService>,
+    vote_service: Arc<VoteService>,
     jwt_keys: Arc<JwtKeys>,
     post_broadcaster: broadcast::Sender<Post>,
 }
@@ -35,11 +39,15 @@ pub fn routes(ctx: AppContext) -> Router {
     let user_repo: Arc<dyn crate::domain::users::UserRepository> = Arc::new(PgUserRepository { pool: ctx.pool.clone(), jwt: (*jwt_keys).clone() });
     let user_service = Arc::new(UserService::new(user_repo));
 
+    let vote_repo: Arc<dyn crate::domain::votes::VoteRepository> = Arc::new(vote_repo::PgVoteRepository { pool: ctx.pool.clone() });
+    let vote_service = Arc::new(VoteService::new(vote_repo));
+
     let (tx, _) = broadcast::channel(100);
 
     let state = ApiState {
         user_service,
         post_service,
+        vote_service,
         jwt_keys,
         post_broadcaster: tx,
     };
@@ -51,6 +59,7 @@ pub fn routes(ctx: AppContext) -> Router {
         .route("/posts", post(post_handler::create_post))
         .route("/posts/{id}", delete(post_handler::delete_post))
         .route("/posts/{id}", put(post_handler::update_post))
+        .route("/posts/{id}/vote", post(post_handler::vote_post))
         .route("/ws/posts", get(post_handler::ws_handler))
         .with_state(state)
 }
