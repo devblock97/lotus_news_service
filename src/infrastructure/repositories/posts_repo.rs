@@ -1,7 +1,9 @@
+use anyhow::Ok;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use log::debug;
 use uuid::Uuid;
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Transaction};
 use crate::infrastructure::db::DbPool;
 
 use crate::domain::posts::{Post, PostRepository};
@@ -149,4 +151,96 @@ impl PostRepository for PgPostRepository {
         };
         Ok(posts)
     }
+
+    async fn upsert_vote_and_recompute(&self, user_id: Uuid, post_id: Uuid, value: i16) -> anyhow::Result<(i32, DateTime<Utc>)> {
+        let mut tx = self.pool.begin().await?;
+
+        let existing = sqlx::query!(
+            r#"
+            SELECT value FROM votes 
+            WHERE user_id = $1 AND post_id = $2
+            "#, 
+            user_id, 
+            post_id
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if let Some(record) = existing {
+            if record.value == value {
+                sqlx::query!(
+                    "DELETE FROM votes WHERE user_id = $1 AND post_id = $2", 
+                    user_id, 
+                    post_id
+                )
+                .execute(&self.pool)
+                .await?;
+            } else {
+                sqlx::query!(
+                    "UPDATE votes SET value = $3 WHERE user_id = $1 AND post_id = $2", 
+                    user_id, 
+                    post_id, 
+                    value
+                )
+                .execute(&self.pool)
+                .await?;
+            }
+        } else {
+            sqlx::query!(
+                "INSERT INTO votes (user_id, post_id, value) VALUES ($1, $2, $3)", 
+                user_id, 
+                post_id, 
+                value
+            )
+            .execute(&self.pool)
+            .await?;
+        }
+
+        // Upsert the vote
+        sqlx::query!(
+            r#"
+            INSERT INTO votes (user_id, post_id, value)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, post_id) DO UPDATE SET value = EXCLUDED.value
+            "#,
+            user_id,
+            post_id,
+            value
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Recompute the post score
+        let score_record = sqlx::query!(
+            r#"
+            SELECT COALESCE(SUM(value), 0) as score
+            FROM votes
+            WHERE post_id = $1
+            "#,
+            post_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let new_score = score_record.score.map(|s| s as i32);
+
+        // Update the post with the new score and get the updated_at timestamp
+        let updated_post = sqlx::query!(
+            r#"
+            UPDATE posts
+            SET score = $1
+            WHERE id = $2
+            RETURNING created_at
+            "#,
+            new_score,
+            post_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok((new_score.unwrap_or(0), updated_post.created_at))
+    }
+    
 }

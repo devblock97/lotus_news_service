@@ -77,6 +77,14 @@ impl PostService {
         Ok(self.repo.delete(post_id).await?)
     }
 
+    pub async fn vote_post(&self, user_id: Uuid, post_id: Uuid, value: i16) -> Result<(i32, DateTime<Utc>), AppError> {
+        if value != 1 && value != -1 && value != 0 {
+            return Err(AppError::validation("Vote value must be 1 (upvote), -1 (downvote), or 0 (remove vote)".to_string()));
+        }
+        let result = self.repo.upsert_vote_and_recompute(user_id, post_id, value).await?;
+        Ok(result)
+    }
+
     pub async fn list_new(
         &self,
         after: Option<(DateTime<Utc>, Uuid)>,
