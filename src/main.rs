@@ -1,18 +1,16 @@
-use postgres::config;
-use lotus_news_service::{build_app, infrastructure::db, AppContext};
+use lotus_news_service::{build_app, AppContext};
 use lotus_news_service::config::Config;
 
 use axum::{extract::{FromRequestParts, Path, State}, http::{header, request::Parts, StatusCode}, Json};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, EncodingKey, Validation};
 use dotenv::dotenv;
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use url::Url;
 use uuid::Uuid;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use validator::{Validate};
 use tracing_subscriber::{self, prelude::*};
-use bcrypt;
 use axum::extract::FromRef;
 use tracing::error;
 
